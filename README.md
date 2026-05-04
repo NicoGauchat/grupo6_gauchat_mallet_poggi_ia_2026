@@ -1,0 +1,1 @@
+# grupo6_gauchat_mallet_poggi_ia_2026

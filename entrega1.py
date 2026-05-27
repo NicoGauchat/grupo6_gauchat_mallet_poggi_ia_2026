@@ -5,11 +5,9 @@ class RoverProblem(SearchProblem):
         
         super().__init__(estado_inicial)
         
-       
         self.zonas_sombra = zonas_sombra
         self.max_bateria = max_bateria
 
-        
         posicion_inicial = estado_inicial[0]
         igneas = estado_inicial[4]
         sedim = estado_inicial[5]
@@ -19,7 +17,6 @@ class RoverProblem(SearchProblem):
         filas = [p[0] for p in todos_los_puntos]
         cols = [p[1] for p in todos_los_puntos]
         
-       
         self.min_f, self.max_f = min(filas) - 2, max(filas) + 2
         self.min_c, self.max_c = min(cols) - 2, max(cols) + 2
 
@@ -64,10 +61,13 @@ class RoverProblem(SearchProblem):
                 acciones_validas.append(("recolectar", "ignea"))
             if posicion in sedim_rest and taladro == "percusion":
                 acciones_validas.append(("recolectar", "sedimentaria"))
-        if posicion not in self.zonas_sombra and bateria <= 10:
+                
+        
+        if posicion not in self.zonas_sombra and bateria < self.max_bateria:
             acciones_validas.append(("recargar", None))
             
         return acciones_validas
+
     def result(self, state, action):
         posicion, bateria, taladro, carga_actual, igneas_rest, sedim_rest = state
         tipo_accion, parametro = action 
@@ -76,8 +76,9 @@ class RoverProblem(SearchProblem):
         nueva_bateria = bateria
         nuevo_taladro = taladro
         nueva_carga = carga_actual
-        nuevas_igneas = list(igneas_rest) 
-        nuevas_sedim = list(sedim_rest)
+        
+        nuevas_igneas = set(igneas_rest) 
+        nuevas_sedim = set(sedim_rest)
         
         if tipo_accion == "moverse":
             nueva_posicion = parametro
@@ -104,9 +105,10 @@ class RoverProblem(SearchProblem):
                 nuevas_sedim.remove(nueva_posicion)
                 
         elif tipo_accion == "recargar":
-            nueva_bateria += 10
+            nueva_bateria = min(self.max_bateria, bateria + 10)
             
-        return (nueva_posicion, nueva_bateria, nuevo_taladro, nueva_carga, tuple(nuevas_igneas), tuple(nuevas_sedim))
+        
+        return (nueva_posicion, nueva_bateria, nuevo_taladro, nueva_carga, frozenset(nuevas_igneas), frozenset(nuevas_sedim))
     
     def is_goal(self, state):
         posicion, bateria, taladro, carga_actual, igneas_rest, sedim_rest = state
@@ -141,40 +143,38 @@ class RoverProblem(SearchProblem):
     def heuristic(self, state):
         posicion, bateria, taladro, carga_actual, igneas_rest, sedim_rest = state
 
+        
         restantes = list(igneas_rest) + list(sedim_rest)
 
-   
         if not restantes:
             return carga_actual
 
-
-        dist_min = min(
+       
+        dist_max = max(
             abs(posicion[0] - r[0]) + abs(posicion[1] - r[1])
             for r in restantes
         )
+        viaje = (dist_max + 1) // 2
 
-        viaje = (dist_min + 1) // 2
-
+      
         recoleccion = 2 * len(restantes)
 
-   
-        deposito = carga_actual
+     
+        deposito = carga_actual + len(restantes)
 
+    
         equipamiento = 0
-
         hay_igneas = len(igneas_rest) > 0
         hay_sedim = len(sedim_rest) > 0
 
         if hay_igneas and hay_sedim:
-            if taladro is None:
+            if taladro is None or taladro == "Ninguno":
                 equipamiento = 6
             else:
                 equipamiento = 3
-
         elif hay_igneas:
             if taladro != "termico":
                 equipamiento = 3
-
         elif hay_sedim:
             if taladro != "percusion":
                 equipamiento = 3
@@ -188,8 +188,8 @@ def planear_rover(rover_inicio, bateria_inicial, zonas_sombra, muestras_igneas, 
         bateria_inicial, 
         "Ninguno", 
         0, 
-        tuple(muestras_igneas), 
-        tuple(muestras_sedimentarias)
+        frozenset(muestras_igneas), 
+        frozenset(muestras_sedimentarias)
     )
     
     problema = RoverProblem(estado_inicial, zonas_sombra)

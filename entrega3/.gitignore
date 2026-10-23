@@ -1,5 +1,3 @@
-data/*.csv
-!data/.gitkeep
 resultados/*.csv
 !resultados/.gitkeep
 __pycache__/
